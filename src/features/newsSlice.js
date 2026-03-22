@@ -1,17 +1,16 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// Use relative path for local dev, CORS proxy for GitHub Pages
-const getAPIURL = () => {
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return '/api';
-  }
-  // CORS proxy for production on GitHub Pages
-  return 'https://api.allorigins.win/raw?url=https://newsapi.org/v2';
-};
+const API_KEY = 'f3de982428584a63af4dcbfd57af635d';
 
-const API_BASE_URL = getAPIURL();
-const IS_LOCAL = API_BASE_URL === '/api';
+// Detect environment and use appropriate API
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_BASE_URL = isLocalhost ? '/api' : 'https://newsapi.org/v2';
+
+// CORS proxy service for production
+const getCORSProxy = (url) => {
+  return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+};
 
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
@@ -19,7 +18,9 @@ export const fetchNews = createAsyncThunk(
     try {
       const state = getState();
       const category = state.news.category || '';
-      const params = {
+      
+      let url;
+      let params = {
         pageSize: 10,
         page,
         category,
@@ -31,21 +32,26 @@ export const fetchNews = createAsyncThunk(
       if (endDate) {
         params.to = endDate;
       }
-      console.log('Fetching news with params:', params);
-      
-      let url;
-      if (IS_LOCAL) {
+
+      if (isLocalhost) {
+        // Local: use backend proxy
         url = `${API_BASE_URL}/news`;
+        console.log('Fetching from local backend:', url);
       } else {
-        // Add API key and params for CORS proxy
-        const apiKey = 'f3de982428584a63af4dcbfd57af635d';
-        const queryString = new URLSearchParams({ ...params, apiKey }).toString();
-        url = `${API_BASE_URL}/top-headlines?${queryString}`;
+        // Production: use CORS proxy with NewsAPI
+        params.apiKey = API_KEY;
+        const queryString = new URLSearchParams(params).toString();
+        const newsApiUrl = `https://newsapi.org/v2/top-headlines?${queryString}`;
+        url = getCORSProxy(newsApiUrl);
+        params = {}; // Don't pass params again to axios
+        console.log('Fetching via CORS proxy');
       }
-      
+
       const response = await axios.get(url, {
-        params: IS_LOCAL ? params : undefined,
+        params: isLocalhost ? params : undefined,
+        timeout: 10000,
       });
+      
       console.log('News API response:', response.data);
       return response.data.articles;
     } catch (error) {
