@@ -5,12 +5,17 @@ const API_KEY = 'f3de982428584a63af4dcbfd57af635d';
 
 // Detect environment and use appropriate API
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const API_BASE_URL = isLocalhost ? '/api' : 'https://newsapi.org/v2';
 
-// CORS proxy service for production
-const getCORSProxy = (url) => {
-  return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+// API endpoints
+const getAPIBase = () => {
+  if (isLocalhost) {
+    return '/api'; // Local backend at localhost:5000
+  }
+  // For production (Vercel), use relative path which routes through Vercel backend
+  return '/api';
 };
+
+const API_BASE = getAPIBase();
 
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
@@ -19,8 +24,7 @@ export const fetchNews = createAsyncThunk(
       const state = getState();
       const category = state.news.category || '';
       
-      let url;
-      let params = {
+      const params = {
         pageSize: 10,
         page,
         category,
@@ -33,22 +37,10 @@ export const fetchNews = createAsyncThunk(
         params.to = endDate;
       }
 
-      if (isLocalhost) {
-        // Local: use backend proxy
-        url = `${API_BASE_URL}/news`;
-        console.log('Fetching from local backend:', url);
-      } else {
-        // Production: use CORS proxy with NewsAPI
-        params.apiKey = API_KEY;
-        const queryString = new URLSearchParams(params).toString();
-        const newsApiUrl = `https://newsapi.org/v2/top-headlines?${queryString}`;
-        url = getCORSProxy(newsApiUrl);
-        params = {}; // Don't pass params again to axios
-        console.log('Fetching via CORS proxy');
-      }
-
-      const response = await axios.get(url, {
-        params: isLocalhost ? params : undefined,
+      console.log('Fetching news from:', API_BASE);
+      
+      const response = await axios.get(`${API_BASE}/news`, {
+        params,
         timeout: 10000,
       });
       
