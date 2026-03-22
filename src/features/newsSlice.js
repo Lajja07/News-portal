@@ -1,8 +1,17 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// Use relative path - proxy will route to backend
-const API_BASE_URL = '/api';
+// Use relative path for local dev, CORS proxy for GitHub Pages
+const getAPIURL = () => {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return '/api';
+  }
+  // CORS proxy for production on GitHub Pages
+  return 'https://api.allorigins.win/raw?url=https://newsapi.org/v2';
+};
+
+const API_BASE_URL = getAPIURL();
+const IS_LOCAL = API_BASE_URL === '/api';
 
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
@@ -23,8 +32,19 @@ export const fetchNews = createAsyncThunk(
         params.to = endDate;
       }
       console.log('Fetching news with params:', params);
-      const response = await axios.get(`${API_BASE_URL}/news`, {
-        params,
+      
+      let url;
+      if (IS_LOCAL) {
+        url = `${API_BASE_URL}/news`;
+      } else {
+        // Add API key and params for CORS proxy
+        const apiKey = 'f3de982428584a63af4dcbfd57af635d';
+        const queryString = new URLSearchParams({ ...params, apiKey }).toString();
+        url = `${API_BASE_URL}/top-headlines?${queryString}`;
+      }
+      
+      const response = await axios.get(url, {
+        params: IS_LOCAL ? params : undefined,
       });
       console.log('News API response:', response.data);
       return response.data.articles;
