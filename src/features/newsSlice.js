@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-const API_KEY = 'f3de982428584a63af4dcbfd57af635d';
+// Use relative path - proxy will route to backend
+const API_BASE_URL = '/api';
 
 export const fetchNews = createAsyncThunk(
   'news/fetchNews',
@@ -14,7 +15,6 @@ export const fetchNews = createAsyncThunk(
         page,
         category,
         country,
-        apiKey: API_KEY,
       };
       if (startDate) {
         params.from = startDate;
@@ -23,7 +23,7 @@ export const fetchNews = createAsyncThunk(
         params.to = endDate;
       }
       console.log('Fetching news with params:', params);
-      const response = await axios.get('https://newsapi.org/v2/top-headlines', {
+      const response = await axios.get(`${API_BASE_URL}/news`, {
         params,
       });
       console.log('News API response:', response.data);
